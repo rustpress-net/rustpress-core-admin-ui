@@ -122,12 +122,20 @@ const navigation = [
     ],
   },
   {
+    id: 'development',
+    title: 'Development',
+    items: [
+      { icon: Code, iconName: 'Code', label: 'Functions', href: '/functions' },
+      { icon: Database, iconName: 'Database', label: 'Database', href: '/database' },
+      { icon: Globe, iconName: 'Globe', label: 'API', href: '/api' },
+    ],
+  },
+  {
     id: 'system',
     title: 'System',
     items: [
       { icon: Settings, iconName: 'Settings', label: 'Settings', href: '/settings' },
-      { icon: Database, iconName: 'Database', label: 'Database', href: '/database' },
-      { icon: Globe, iconName: 'Globe', label: 'API', href: '/api' },
+      { icon: Zap, iconName: 'Zap', label: 'Cache', href: '/cache' },
     ],
   },
 ];
