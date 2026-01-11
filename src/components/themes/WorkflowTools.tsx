@@ -1540,6 +1540,16 @@ const WorkflowTools: React.FC<WorkflowToolsProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Save Button */}
+          <button
+            onClick={() => saveNow()}
+            className="flex items-center gap-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+            title="Save (Ctrl+S)"
+          >
+            <Save className="w-4 h-4" />
+            <span className="text-sm hidden sm:inline">Save</span>
+          </button>
+
           {/* Version History */}
           <div className="history-button">
             <VersionHistoryPanel
@@ -1552,22 +1562,57 @@ const WorkflowTools: React.FC<WorkflowToolsProps> = ({
             />
           </div>
 
+          <div className="w-px h-6 bg-gray-200 dark:bg-gray-700" />
+
+          {/* Colors Button */}
+          <button
+            onClick={() => toast('Open Colors from main panel')}
+            className="flex items-center gap-2 px-3 py-2 bg-pink-100 dark:bg-pink-900/30 hover:bg-pink-200 dark:hover:bg-pink-900/50 text-pink-600 rounded-lg transition-colors"
+            title="Colors"
+          >
+            <Palette className="w-4 h-4" />
+            <span className="text-sm hidden md:inline">Colors</span>
+          </button>
+
+          {/* Typography Button */}
+          <button
+            onClick={() => toast('Open Typography from main panel')}
+            className="flex items-center gap-2 px-3 py-2 bg-purple-100 dark:bg-purple-900/30 hover:bg-purple-200 dark:hover:bg-purple-900/50 text-purple-600 rounded-lg transition-colors"
+            title="Typography"
+          >
+            <Type className="w-4 h-4" />
+            <span className="text-sm hidden md:inline">Typography</span>
+          </button>
+
+          {/* Layout Button */}
+          <button
+            onClick={() => toast('Open Layout from main panel')}
+            className="flex items-center gap-2 px-3 py-2 bg-cyan-100 dark:bg-cyan-900/30 hover:bg-cyan-200 dark:hover:bg-cyan-900/50 text-cyan-600 rounded-lg transition-colors"
+            title="Layout"
+          >
+            <Layout className="w-4 h-4" />
+            <span className="text-sm hidden md:inline">Layout</span>
+          </button>
+
+          <div className="w-px h-6 bg-gray-200 dark:bg-gray-700" />
+
           {/* Compare Button */}
           <button
             onClick={() => setShowComparison(true)}
-            className="flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            className="flex items-center gap-2 px-3 py-2 bg-green-100 dark:bg-green-900/30 hover:bg-green-200 dark:hover:bg-green-900/50 text-green-600 rounded-lg transition-colors"
           >
-            <SplitSquareVertical className="w-4 h-4 text-gray-500" />
-            <span className="text-sm text-gray-700 dark:text-gray-300">Compare</span>
+            <SplitSquareVertical className="w-4 h-4" />
+            <span className="text-sm hidden lg:inline">Compare</span>
           </button>
 
           {/* Keyboard Shortcuts */}
           <button
             onClick={() => setShowShortcuts(true)}
             className="shortcuts-button flex items-center gap-2 px-3 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            title="Keyboard Shortcuts (?)"
           >
             <Keyboard className="w-4 h-4 text-gray-500" />
-            <span className="text-sm text-gray-700 dark:text-gray-300 hidden sm:inline">Shortcuts</span>
+            <span className="text-sm text-gray-700 dark:text-gray-300 hidden lg:inline">Shortcuts</span>
           </button>
 
           {/* Help/Onboarding */}
@@ -1583,9 +1628,6 @@ const WorkflowTools: React.FC<WorkflowToolsProps> = ({
 
       {/* Main Content */}
       {children}
-
-      {/* Quick Actions Toolbar */}
-      <QuickActionsToolbar actions={quickActions} position="right" />
 
       {/* Keyboard Shortcuts Modal */}
       <KeyboardShortcutsModal
