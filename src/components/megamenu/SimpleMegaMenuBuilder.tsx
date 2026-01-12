@@ -6356,28 +6356,55 @@ export const SimpleMegaMenuBuilder: React.FC<SimpleMegaMenuBuilderProps> = ({
 
   const selectedColumnData = megaConfig.columns.find(c => c.id === selectedColumn);
 
+  // Handle escape key to close
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+    // Prevent body scroll when modal is open
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+      document.body.style.overflow = '';
+    };
+  }, [onClose]);
+
   return (
-    <div className="fixed inset-0 z-50 flex">
+    <div className="fixed inset-0 z-50 flex flex-col lg:flex-row">
+      {/* Backdrop overlay for click-to-close */}
+      <div
+        className="absolute inset-0 bg-black/20 backdrop-blur-sm -z-10"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+
       {/* Left Panel - Settings */}
-      <div className="w-96 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
+      <div className="w-full lg:w-96 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col max-h-[50vh] lg:max-h-full shadow-xl lg:shadow-none">
         {/* Header */}
-        <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-              <LayoutGrid size={20} className="text-purple-600" />
+        <div className="p-3 lg:p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between shrink-0 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20">
+          <div className="flex items-center gap-2 lg:gap-3">
+            <div className="p-1.5 lg:p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+              <LayoutGrid size={18} className="text-purple-600" />
             </div>
             <div>
-              <h2 className="font-semibold text-gray-900 dark:text-white">Mega Menu Builder</h2>
-              <p className="text-xs text-gray-500">{menuItemLabel}</p>
+              <h2 className="font-semibold text-gray-900 dark:text-white text-sm lg:text-base">Mega Menu Builder</h2>
+              <p className="text-xs text-gray-500 truncate max-w-[150px] lg:max-w-none">{menuItemLabel}</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg">
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            title="Close (Esc)"
+          >
             <X size={20} />
           </button>
         </div>
 
         {/* Settings Content */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-6">
+        <div className="flex-1 overflow-y-auto p-3 lg:p-4 space-y-4 lg:space-y-6">
           {/* Layout Section */}
           <section>
             <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
@@ -7224,10 +7251,10 @@ export const SimpleMegaMenuBuilder: React.FC<SimpleMegaMenuBuilderProps> = ({
           </section>
         </div>
 
-        {/* Footer */}
-        <div className="p-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
-          {/* Import/Export Row */}
-          <div className="flex gap-2">
+        {/* Footer - Always visible, doesn't shrink */}
+        <div className="p-3 lg:p-4 border-t border-gray-200 dark:border-gray-700 space-y-2 shrink-0 bg-gray-50 dark:bg-gray-800/50">
+          {/* Import/Export Row - Collapsible on mobile */}
+          <div className="hidden lg:flex gap-2">
             <button
               onClick={importMegaMenu}
               className="flex-1 py-1.5 px-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center justify-center gap-1.5 text-sm"
@@ -7246,35 +7273,35 @@ export const SimpleMegaMenuBuilder: React.FC<SimpleMegaMenuBuilderProps> = ({
             </button>
           </div>
           {/* Action Row */}
-          <div className="flex gap-3">
+          <div className="flex gap-2 lg:gap-3">
             <button
               onClick={onClose}
-              className="flex-1 py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+              className="flex-1 py-2 px-3 lg:px-4 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm lg:text-base"
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
-              className="flex-1 py-2 px-4 bg-primary-600 text-white rounded-lg hover:bg-primary-700 flex items-center justify-center gap-2"
+              className="flex-1 py-2 px-3 lg:px-4 bg-primary-600 text-white rounded-lg hover:bg-primary-700 flex items-center justify-center gap-2 text-sm lg:text-base"
             >
               <Save size={16} />
-              Save Menu
+              Save
             </button>
           </div>
         </div>
       </div>
 
       {/* Right Panel - Preview */}
-      <div className="flex-1 bg-gray-100 dark:bg-gray-900 flex flex-col">
+      <div className="flex-1 bg-gray-100 dark:bg-gray-900 flex flex-col min-h-[50vh] lg:min-h-0 overflow-hidden">
         {/* Preview Header */}
-        <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center justify-between">
+        <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
             <Eye size={18} className="text-gray-500" />
             <span className="font-medium text-gray-700 dark:text-gray-300">Live Preview</span>
           </div>
           <div className="flex items-center gap-2">
-            {/* Device Toggle */}
-            <div className="flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+            {/* Device Toggle - Hidden on mobile */}
+            <div className="hidden sm:flex bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
               {[
                 { id: 'desktop' as const, icon: Monitor },
                 { id: 'tablet' as const, icon: Tablet },
@@ -7297,6 +7324,7 @@ export const SimpleMegaMenuBuilder: React.FC<SimpleMegaMenuBuilderProps> = ({
             <button
               onClick={() => setShowPreview(!showPreview)}
               className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+              title={showPreview ? 'Hide preview' : 'Show preview'}
             >
               {showPreview ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
@@ -7304,7 +7332,7 @@ export const SimpleMegaMenuBuilder: React.FC<SimpleMegaMenuBuilderProps> = ({
         </div>
 
         {/* Preview Content */}
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-auto">
           {showPreview ? (
             <LivePreview
               config={megaConfig}

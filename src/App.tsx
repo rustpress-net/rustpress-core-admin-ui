@@ -47,6 +47,7 @@ const SidebarManagerComponent = lazy(() => import('./components/themes/SidebarMa
 const MenuManager = lazy(() => import('./components/themes/MenuManager'));
 const PageTemplateSelector = lazy(() => import('./components/themes/PageTemplateSelector'));
 const ThemeEditorFull = lazy(() => import('./pages/ThemeEditor'));
+const Plugins = lazy(() => import('./pages/Plugins'));
 
 // Appearance Pages
 const AppearanceHeaderManager = lazy(() => import('./pages/appearance/HeaderManager'));
@@ -300,54 +301,6 @@ const ThemesPage = () => (
         </motion.div>
       ))}
     </Grid>
-  </motion.div>
-);
-
-// Plugins Page
-const PluginsPage = () => (
-  <motion.div initial="hidden" animate="visible" variants={staggerContainer} className="space-y-6">
-    <PageHeader
-      title="Plugins"
-      description="Extend your site functionality"
-      actions={
-        <Button variant="primary" leftIcon={<Plus className="w-4 h-4" />}>
-          Add New Plugin
-        </Button>
-      }
-    />
-    <motion.div variants={fadeInUp}>
-      <DataTable
-        columns={[
-          { key: 'name', header: 'Plugin', sortable: true },
-          { key: 'description', header: 'Description' },
-          { key: 'version', header: 'Version' },
-          {
-            key: 'active',
-            header: 'Status',
-            render: (value) => (
-              <Badge variant={value ? 'success' : 'secondary'} size="sm">
-                {value ? 'Active' : 'Inactive'}
-              </Badge>
-            )
-          },
-          {
-            key: 'actions',
-            header: 'Actions',
-            render: (_, row) => (
-              <Button variant="ghost" size="sm">
-                {row.active ? 'Deactivate' : 'Activate'}
-              </Button>
-            )
-          }
-        ]}
-        data={[
-          { id: 1, name: 'SEO Optimizer', description: 'Advanced SEO tools', version: '2.1.0', active: true },
-          { id: 2, name: 'Cache Manager', description: 'Performance caching', version: '1.5.0', active: true },
-          { id: 3, name: 'Analytics Pro', description: 'Google Analytics integration', version: '3.0.0', active: false },
-          { id: 4, name: 'Contact Forms', description: 'Form builder', version: '1.2.0', active: true },
-        ]}
-      />
-    </motion.div>
   </motion.div>
 );
 
@@ -749,8 +702,8 @@ function App() {
         } />
 
         {/* Plugins */}
-        <Route path="plugins" element={<PluginsPage />} />
-        <Route path="plugins/add" element={<PluginsPage />} />
+        <Route path="plugins" element={<Plugins />} />
+        <Route path="plugins/add" element={<Plugins />} />
 
         {/* Users */}
         <Route path="users" element={<UsersListPage />} />
