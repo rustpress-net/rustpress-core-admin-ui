@@ -476,7 +476,7 @@ export function DependencyResolver({ dependencies, onResolve, onSkip }: Dependen
                 type="checkbox"
                 checked={selectedDeps.has(dep.id) || dep.status === 'installed'}
                 onChange={() => toggleDep(dep.id)}
-                disabled={dep.status === 'installed' || (dep.type === 'required' && dep.status !== 'installed')}
+                disabled={dep.status === 'installed' || dep.type === 'required'}
                 className="w-4 h-4 rounded border-neutral-300 text-primary-600 focus:ring-primary-500"
               />
               <div className="flex-1">
@@ -1476,20 +1476,20 @@ export function PluginHealthMonitor({ healthData, onRefresh, onViewDetails }: Pl
     return 'unknown';
   }, [healthData]);
 
-  const statusConfig = {
-    healthy: { icon: Heart, color: 'text-green-500', bgColor: 'bg-green-100 dark:bg-green-900/30', label: 'Healthy' },
-    warning: { icon: AlertTriangle, color: 'text-yellow-500', bgColor: 'bg-yellow-100 dark:bg-yellow-900/30', label: 'Warning' },
-    critical: { icon: ServerCrash, color: 'text-red-500', bgColor: 'bg-red-100 dark:bg-red-900/30', label: 'Critical' },
-    unknown: { icon: HelpCircle, color: 'text-neutral-500', bgColor: 'bg-neutral-100 dark:bg-neutral-800', label: 'Unknown' },
-  };
-
-  const HelpCircle = ({ className }: { className?: string }) => (
+  const HelpCircleIcon = ({ className }: { className?: string }) => (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <circle cx="12" cy="12" r="10" />
       <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
       <path d="M12 17h.01" />
     </svg>
   );
+
+  const statusConfig = {
+    healthy: { icon: Heart, color: 'text-green-500', bgColor: 'bg-green-100 dark:bg-green-900/30', label: 'Healthy' },
+    warning: { icon: AlertTriangle, color: 'text-yellow-500', bgColor: 'bg-yellow-100 dark:bg-yellow-900/30', label: 'Warning' },
+    critical: { icon: ServerCrash, color: 'text-red-500', bgColor: 'bg-red-100 dark:bg-red-900/30', label: 'Critical' },
+    unknown: { icon: HelpCircleIcon, color: 'text-neutral-500', bgColor: 'bg-neutral-100 dark:bg-neutral-800', label: 'Unknown' },
+  };
 
   return (
     <div className="space-y-6">

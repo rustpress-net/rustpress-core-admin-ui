@@ -202,6 +202,12 @@ export const IDE: React.FC<IDEProps> = ({
     }
   }, [openFiles]);
 
+  // Open file from search (extracts name from path)
+  const openFileFromPath = useCallback((path: string, line?: number, column?: number) => {
+    const name = path.split('/').pop() || path;
+    return openFileHandler(path, name, line, column);
+  }, [openFileHandler]);
+
   // Close a file
   const closeFile = useCallback((path: string) => {
     const fileIndex = openFiles.findIndex(f => f.path === path);
@@ -686,17 +692,16 @@ export const IDE: React.FC<IDEProps> = ({
                 language={activeFile.language}
                 onChange={(content) => updateFileContent(activeFile.path, content)}
                 onCursorChange={(line, column) => updateCursorPosition(activeFile.path, line, column)}
-                options={{
+                editorOptions={{
                   fontSize: editorConfig.fontSize,
                   fontFamily: editorConfig.fontFamily,
                   tabSize: editorConfig.tabSize,
-                  wordWrap: editorConfig.wordWrap ? 'on' : 'off',
-                  minimap: { enabled: editorConfig.minimap },
-                  lineNumbers: editorConfig.lineNumbers ? 'on' : 'off',
-                  matchBrackets: editorConfig.bracketMatching ? 'always' : 'never',
-                  renderIndentGuides: editorConfig.indentGuides,
+                  wordWrap: editorConfig.wordWrap,
+                  minimap: editorConfig.minimap,
+                  lineNumbers: editorConfig.lineNumbers,
+                  bracketMatching: editorConfig.bracketMatching,
+                  indentGuides: editorConfig.indentGuides,
                 }}
-                cursorPosition={activeFile.cursorPosition}
               />
             ) : (
               <div className="h-full flex items-center justify-center text-gray-500">
@@ -775,7 +780,7 @@ export const IDE: React.FC<IDEProps> = ({
                   <GlobalSearch
                     isOpen={true}
                     onClose={() => setRightPanel(null)}
-                    onFileOpen={openFileHandler}
+                    onFileOpen={openFileFromPath}
                     searchInFiles={searchInFiles}
                   />
                 )}

@@ -953,19 +953,19 @@ export function ChangelogHistory({ versions }: ChangelogHistoryProps) {
     });
   };
 
+  const PlusIcon = ({ className }: { className?: string }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M12 5v14M5 12h14" />
+    </svg>
+  );
+
   const changeTypeConfig = {
-    added: { label: 'Added', color: 'text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/30', icon: Plus },
+    added: { label: 'Added', color: 'text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/30', icon: PlusIcon },
     changed: { label: 'Changed', color: 'text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/30', icon: RefreshCw },
     fixed: { label: 'Fixed', color: 'text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/30', icon: Zap },
     removed: { label: 'Removed', color: 'text-red-600 dark:text-red-400 bg-red-100 dark:bg-red-900/30', icon: Minus },
     security: { label: 'Security', color: 'text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30', icon: Shield },
   };
-
-  const Plus = ({ className }: { className?: string }) => (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M12 5v14M5 12h14" />
-    </svg>
-  );
 
   return (
     <div className="space-y-4">
