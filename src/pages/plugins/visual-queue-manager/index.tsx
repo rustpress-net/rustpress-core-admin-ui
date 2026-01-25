@@ -167,7 +167,7 @@ export function VisualQueueManager() {
 
   return (
     <div className={cn(
-      'flex h-screen bg-neutral-50 dark:bg-neutral-950 -mx-6 -mt-4 -mb-6',
+      'fixed inset-0 flex bg-neutral-50 dark:bg-neutral-950 overflow-hidden',
       isDarkMode && 'dark'
     )}>
       {/* Sidebar */}
