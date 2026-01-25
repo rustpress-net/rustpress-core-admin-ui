@@ -48,6 +48,7 @@ const MenuManager = lazy(() => import('./components/themes/MenuManager'));
 const PageTemplateSelector = lazy(() => import('./components/themes/PageTemplateSelector'));
 const ThemeEditorFull = lazy(() => import('./pages/ThemeEditor'));
 const Plugins = lazy(() => import('./pages/Plugins'));
+const VisualQueueManager = lazy(() => import('./pages/plugins/VisualQueueManager'));
 const DetachedTabWindow = lazy(() => import('./components/ide/DetachedTabWindow'));
 
 // Appearance Pages
@@ -772,6 +773,16 @@ function App() {
         {/* Plugins */}
         <Route path="plugins" element={<Plugins />} />
         <Route path="plugins/add" element={<Plugins />} />
+        <Route path="plugins/visual-queue-manager" element={
+          <Suspense fallback={<PageLoader />}>
+            <VisualQueueManager />
+          </Suspense>
+        } />
+        <Route path="plugins/:pluginSlug" element={
+          <Suspense fallback={<PageLoader />}>
+            <Plugins />
+          </Suspense>
+        } />
 
         {/* Apps */}
         <Route path="apps" element={

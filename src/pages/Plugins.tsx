@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search,
@@ -67,6 +68,7 @@ import {
 } from 'lucide-react';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
+import { usePluginStore } from '../store/pluginStore';
 
 // ============================================
 // TYPES & INTERFACES
@@ -1282,6 +1284,10 @@ const PluginDetailsModal: React.FC<{
 // ============================================
 
 const Plugins: React.FC = () => {
+  const { pluginSlug } = useParams<{ pluginSlug?: string }>();
+  const navigate = useNavigate();
+  const { installedPlugins } = usePluginStore();
+
   const [plugins, setPlugins] = useState<Plugin[]>(samplePlugins);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [searchQuery, setSearchQuery] = useState('');
@@ -1292,6 +1298,59 @@ const Plugins: React.FC = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [tabView, setTabView] = useState<TabView>('browse');
   const [selectedPlugin, setSelectedPlugin] = useState<Plugin | null>(null);
+
+  // Handle URL parameter to auto-select plugin
+  useEffect(() => {
+    if (pluginSlug) {
+      // First check in samplePlugins
+      let foundPlugin = plugins.find(p => p.slug === pluginSlug);
+
+      // If not found, check installed plugins and convert to Plugin type
+      if (!foundPlugin) {
+        const installedPlugin = installedPlugins.find(p => p.slug === pluginSlug);
+        if (installedPlugin) {
+          // Convert InstalledPlugin to Plugin type for display
+          foundPlugin = {
+            id: installedPlugin.id,
+            name: installedPlugin.name,
+            slug: installedPlugin.slug,
+            description: installedPlugin.description,
+            longDescription: installedPlugin.description,
+            version: installedPlugin.version,
+            author: installedPlugin.author,
+            authorUrl: '#',
+            icon: installedPlugin.icon,
+            iconBg: 'bg-gradient-to-br from-primary-500 to-accent-600',
+            screenshots: [],
+            rating: 5,
+            reviewCount: 0,
+            downloads: 0,
+            activeInstalls: 0,
+            price: 'free',
+            tags: [installedPlugin.category],
+            category: installedPlugin.category,
+            features: [],
+            requirements: [],
+            lastUpdated: installedPlugin.updatedAt,
+            compatibility: '1.0+',
+            isActive: installedPlugin.active,
+            isInstalled: true,
+            isFeatured: false,
+            isPremium: false,
+            docsUrl: '#',
+            supportUrl: '#',
+            reviews: [],
+            changelog: [],
+          };
+        }
+      }
+
+      if (foundPlugin) {
+        setSelectedPlugin(foundPlugin);
+        setTabView('installed');
+      }
+    }
+  }, [pluginSlug, plugins, installedPlugins]);
 
   // Filter and sort plugins
   const filteredPlugins = useMemo(() => {
@@ -1621,7 +1680,13 @@ const Plugins: React.FC = () => {
         {selectedPlugin && (
           <PluginDetailsModal
             plugin={selectedPlugin}
-            onClose={() => setSelectedPlugin(null)}
+            onClose={() => {
+              setSelectedPlugin(null);
+              // If we came from a plugin-specific URL, navigate back to /plugins
+              if (pluginSlug) {
+                navigate('/plugins');
+              }
+            }}
             onActivate={handleActivate}
             onDeactivate={handleDeactivate}
             onInstall={handleInstall}

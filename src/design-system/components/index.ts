@@ -39,7 +39,7 @@ export type { SidebarProps, SidebarHeaderProps, SidebarGroupProps, SidebarItemPr
 export { TopNav } from './TopNav';
 export type { TopNavProps } from './TopNav';
 
-export { PluginsMegaMenu } from './PluginsMegaMenu';
+export { PluginsMegaMenu, PluginsSidebarSubmenu } from './PluginsMegaMenu';
 export type { PluginsMegaMenuProps } from './PluginsMegaMenu';
 
 // Command Palette & Navigation Enhancements

@@ -63,6 +63,7 @@ import {
   RecentlyVisited,
   Favorites,
   KeyboardShortcutsPanel,
+  PluginsMegaMenu,
 } from '../design-system';
 import { useNavigationStore } from '../store/navigationStore';
 import { useAppStore } from '../store/appStore';
@@ -348,6 +349,8 @@ export function EnterpriseLayout() {
                 onSettingsClick={() => navigate('/settings')}
                 customContent={
                   <div className="flex items-center gap-2">
+                    {/* Plugins MegaMenu */}
+                    <PluginsMegaMenu />
                     {/* View Website/App Button */}
                     <button
                       onClick={() => {

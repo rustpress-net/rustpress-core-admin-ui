@@ -44,6 +44,24 @@ interface PluginState {
 // Default installed plugins (for demo)
 const defaultPlugins: InstalledPlugin[] = [
   {
+    id: 'visual-queue-manager',
+    name: 'Visual Queue Manager',
+    slug: 'visual-queue-manager',
+    description: 'Enterprise-grade visual queue management system with real-time monitoring, event-driven processing, and comprehensive analytics',
+    version: '1.0.0',
+    author: 'RustPress Enterprise',
+    active: true,
+    icon: 'Layers',
+    category: 'utility',
+    isRustPlugin: true,
+    showInMenu: true,
+    menuLabel: 'Queue Manager',
+    menuHref: '/plugins/visual-queue-manager',
+    settings: {},
+    installedAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
     id: 'rust-users',
     name: 'RustUsers',
     slug: 'rust-users',
