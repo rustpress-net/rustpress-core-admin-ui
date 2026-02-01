@@ -291,6 +291,388 @@ export default function ContentTemplates({
     setTemplates(prev => prev.filter(t => t.id !== templateId))
   }
 
+  // Generate full theme preview HTML for template
+  const generateTemplatePreviewHTML = (template: Template) => {
+    const layout = template.settings.layout || 'default'
+    const showSidebar = layout === 'sidebar-left' || layout === 'sidebar-right'
+    const sidebarPosition = layout === 'sidebar-left' ? 'left' : 'right'
+
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+        <style>
+          :root {
+            --color-primary: #3B82F6;
+            --color-primary-dark: #1D4ED8;
+            --color-secondary: #10B981;
+            --color-text: #1F2937;
+            --color-text-light: #6B7280;
+            --color-bg: #FFFFFF;
+            --color-bg-alt: #F9FAFB;
+            --color-border: #E5E7EB;
+          }
+          * { box-sizing: border-box; margin: 0; padding: 0; }
+          body {
+            font-family: 'Inter', system-ui, sans-serif;
+            line-height: 1.6;
+            color: var(--color-text);
+            background: var(--color-bg);
+          }
+
+          /* Header */
+          .site-header {
+            background: var(--color-bg);
+            border-bottom: 1px solid var(--color-border);
+            padding: 0.75rem 1.5rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+          }
+          .header-inner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            max-width: 1400px;
+            margin: 0 auto;
+          }
+          .site-logo {
+            font-size: 1.25rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+          }
+          .nav-menu {
+            display: flex;
+            list-style: none;
+            gap: 0.5rem;
+          }
+          .nav-menu a {
+            color: var(--color-text);
+            text-decoration: none;
+            font-size: 0.875rem;
+            font-weight: 500;
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.375rem;
+          }
+          .nav-menu a:hover { background: var(--color-bg-alt); }
+          .nav-menu .current a { background: var(--color-primary); color: white; }
+
+          /* Main Layout */
+          .site-main {
+            display: ${showSidebar ? 'grid' : 'block'};
+            ${showSidebar ? `grid-template-columns: ${sidebarPosition === 'left' ? '280px 1fr' : '1fr 280px'};` : ''}
+            gap: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+          }
+
+          /* Sidebar */
+          .site-sidebar {
+            ${showSidebar ? '' : 'display: none;'}
+            ${sidebarPosition === 'left' ? 'order: -1;' : ''}
+          }
+          .sidebar-widget {
+            background: var(--color-bg);
+            border: 1px solid var(--color-border);
+            border-radius: 0.75rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+          }
+          .widget-title {
+            font-size: 0.875rem;
+            font-weight: 700;
+            margin-bottom: 0.75rem;
+            color: var(--color-text);
+          }
+          .widget-list { list-style: none; }
+          .widget-list li {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--color-border);
+            font-size: 0.875rem;
+          }
+          .widget-list li:last-child { border: none; }
+          .widget-list a { color: var(--color-text); text-decoration: none; }
+          .widget-list a:hover { color: var(--color-primary); }
+
+          /* Content */
+          .site-content {
+            max-width: ${showSidebar ? '100%' : '800px'};
+            margin: ${showSidebar ? '0' : '0 auto'};
+          }
+
+          /* Post Header */
+          .post-header { margin-bottom: 1.5rem; }
+          .category-badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
+            color: white;
+            font-size: 0.625rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            border-radius: 0.375rem;
+            margin-bottom: 0.75rem;
+          }
+          .post-title {
+            font-size: 2.25rem;
+            font-weight: 800;
+            line-height: 1.2;
+            margin-bottom: 1rem;
+          }
+          .post-meta {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.75rem;
+            color: var(--color-text-light);
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--color-border);
+          }
+          .author-avatar {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 0.625rem;
+            font-weight: 600;
+            margin-right: 0.5rem;
+          }
+
+          /* Featured Image */
+          .featured-image {
+            margin: 1.5rem 0;
+            border-radius: 0.75rem;
+            overflow: hidden;
+            background: linear-gradient(135deg, var(--color-bg-alt), var(--color-border));
+            height: 300px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--color-text-light);
+          }
+
+          /* Post Content */
+          .post-content {
+            font-size: 1rem;
+            line-height: 1.8;
+          }
+          .post-content p { margin-bottom: 1rem; }
+          .post-content h1, .post-content h2, .post-content h3 {
+            font-weight: 700;
+            margin: 1.5rem 0 0.75rem;
+          }
+          .post-content h1 { font-size: 1.75rem; }
+          .post-content h2 { font-size: 1.5rem; border-bottom: 2px solid var(--color-border); padding-bottom: 0.5rem; }
+          .post-content h3 { font-size: 1.25rem; }
+          .post-content a { color: var(--color-primary); }
+          .post-content blockquote {
+            border-left: 4px solid var(--color-primary);
+            padding: 0.75rem 1rem;
+            margin: 1rem 0;
+            background: var(--color-bg-alt);
+            font-style: italic;
+          }
+          .post-content pre {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            overflow-x: auto;
+            font-size: 0.875rem;
+          }
+          .post-content ul, .post-content ol { margin: 1rem 0; padding-left: 1.5rem; }
+
+          /* Footer */
+          .site-footer {
+            background: #1F2937;
+            color: #9CA3AF;
+            margin-top: 2rem;
+            padding: 2rem 1.5rem;
+          }
+          .footer-inner {
+            max-width: 1400px;
+            margin: 0 auto;
+          }
+          .footer-widgets {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+          }
+          .footer-widget h3 {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: white;
+            margin-bottom: 0.75rem;
+          }
+          .footer-widget p { font-size: 0.75rem; line-height: 1.6; }
+          .footer-widget ul { list-style: none; }
+          .footer-widget li { margin-bottom: 0.25rem; }
+          .footer-widget a { color: #9CA3AF; text-decoration: none; font-size: 0.75rem; }
+          .footer-widget a:hover { color: white; }
+          .footer-bottom {
+            border-top: 1px solid rgba(255,255,255,0.1);
+            padding-top: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.75rem;
+          }
+        </style>
+      </head>
+      <body>
+        <!-- Header -->
+        <header class="site-header">
+          <div class="header-inner">
+            <div class="site-logo">RustPress</div>
+            <nav>
+              <ul class="nav-menu">
+                <li><a href="#">Home</a></li>
+                <li class="current"><a href="#">Blog</a></li>
+                <li><a href="#">About</a></li>
+                <li><a href="#">Shop</a></li>
+                <li><a href="#">Contact</a></li>
+              </ul>
+            </nav>
+          </div>
+        </header>
+
+        <!-- Main Layout -->
+        <div class="site-main">
+          ${sidebarPosition === 'left' ? `
+          <!-- Sidebar Left -->
+          <aside class="site-sidebar">
+            <div class="sidebar-widget">
+              <h4 class="widget-title">Categories</h4>
+              <ul class="widget-list">
+                <li><a href="#">Technology</a></li>
+                <li><a href="#">Lifestyle</a></li>
+                <li><a href="#">Travel</a></li>
+                <li><a href="#">Business</a></li>
+              </ul>
+            </div>
+            <div class="sidebar-widget">
+              <h4 class="widget-title">Recent Posts</h4>
+              <ul class="widget-list">
+                <li><a href="#">Getting Started Guide</a></li>
+                <li><a href="#">10 Tips for Blogging</a></li>
+                <li><a href="#">Theme Customization</a></li>
+              </ul>
+            </div>
+          </aside>
+          ` : ''}
+
+          <!-- Post Content Area -->
+          <main class="site-content">
+            <!-- Post Header -->
+            <header class="post-header">
+              <span class="category-badge">${template.category}</span>
+              <h1 class="post-title">${template.name}</h1>
+              ${template.settings.showAuthor || template.settings.showDate ? `
+              <div class="post-meta">
+                ${template.settings.showAuthor ? `
+                <span style="display: flex; align-items: center;">
+                  <span class="author-avatar">${template.author.name.charAt(0)}</span>
+                  ${template.author.name}
+                </span>
+                ` : ''}
+                ${template.settings.showDate ? `<span>${template.updatedAt.toLocaleDateString()}</span>` : ''}
+                <span>5 min read</span>
+              </div>
+              ` : ''}
+            </header>
+
+            ${template.settings.featuredImage ? `
+            <!-- Featured Image -->
+            <div class="featured-image">Featured Image</div>
+            ` : ''}
+
+            <!-- Post Content -->
+            <div class="post-content">
+              ${template.content}
+            </div>
+          </main>
+
+          ${sidebarPosition === 'right' ? `
+          <!-- Sidebar Right -->
+          <aside class="site-sidebar">
+            <div class="sidebar-widget">
+              <h4 class="widget-title">Categories</h4>
+              <ul class="widget-list">
+                <li><a href="#">Technology</a></li>
+                <li><a href="#">Lifestyle</a></li>
+                <li><a href="#">Travel</a></li>
+                <li><a href="#">Business</a></li>
+              </ul>
+            </div>
+            <div class="sidebar-widget">
+              <h4 class="widget-title">Recent Posts</h4>
+              <ul class="widget-list">
+                <li><a href="#">Getting Started Guide</a></li>
+                <li><a href="#">10 Tips for Blogging</a></li>
+                <li><a href="#">Theme Customization</a></li>
+              </ul>
+            </div>
+          </aside>
+          ` : ''}
+        </div>
+
+        <!-- Footer -->
+        <footer class="site-footer">
+          <div class="footer-inner">
+            <div class="footer-widgets">
+              <div class="footer-widget">
+                <h3>RustPress</h3>
+                <p>A modern developer-focused CMS built with Rust.</p>
+              </div>
+              <div class="footer-widget">
+                <h3>Quick Links</h3>
+                <ul>
+                  <li><a href="#">Home</a></li>
+                  <li><a href="#">About</a></li>
+                  <li><a href="#">Blog</a></li>
+                  <li><a href="#">Contact</a></li>
+                </ul>
+              </div>
+              <div class="footer-widget">
+                <h3>Categories</h3>
+                <ul>
+                  <li><a href="#">Technology</a></li>
+                  <li><a href="#">Lifestyle</a></li>
+                  <li><a href="#">Travel</a></li>
+                </ul>
+              </div>
+              <div class="footer-widget">
+                <h3>Newsletter</h3>
+                <p>Subscribe for updates.</p>
+              </div>
+            </div>
+            <div class="footer-bottom">
+              <p>&copy; ${new Date().getFullYear()} RustPress. All rights reserved.</p>
+              <div style="display: flex; gap: 1rem;">
+                <a href="#">Privacy</a>
+                <a href="#">Terms</a>
+              </div>
+            </div>
+          </div>
+        </footer>
+      </body>
+      </html>
+    `
+  }
+
   return (
     <div className={clsx('flex flex-col h-full bg-white dark:bg-gray-800', className)}>
       {/* Header */}
@@ -564,7 +946,7 @@ export default function ContentTemplates({
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="w-full max-w-4xl max-h-full bg-white dark:bg-gray-800 rounded-xl shadow-xl overflow-hidden flex flex-col"
+              className="w-full max-w-5xl max-h-full bg-white dark:bg-gray-800 rounded-xl shadow-xl overflow-hidden flex flex-col"
               onClick={e => e.stopPropagation()}
             >
               {/* Header */}
@@ -597,14 +979,13 @@ export default function ContentTemplates({
                 </div>
               </div>
 
-              {/* Preview Content */}
-              <div className="flex-1 overflow-auto p-6 bg-gray-50 dark:bg-gray-900">
-                <div className="max-w-3xl mx-auto bg-white dark:bg-gray-800 rounded-lg shadow-sm p-8">
-                  <div
-                    className="prose dark:prose-invert max-w-none"
-                    dangerouslySetInnerHTML={{ __html: selectedTemplate.content }}
-                  />
-                </div>
+              {/* Preview Content - Full Theme Preview */}
+              <div className="flex-1 overflow-auto bg-gray-100 dark:bg-gray-900">
+                <iframe
+                  srcDoc={generateTemplatePreviewHTML(selectedTemplate)}
+                  className="w-full h-full min-h-[600px] border-0"
+                  title={`Preview: ${selectedTemplate.name}`}
+                />
               </div>
 
               {/* Footer */}

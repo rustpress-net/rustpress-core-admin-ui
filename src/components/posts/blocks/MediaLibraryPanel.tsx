@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Image,
@@ -28,7 +28,8 @@ import {
   Tag,
   Star,
   StarOff,
-  MoreVertical
+  MoreVertical,
+  Loader2
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -182,6 +183,41 @@ const mockFolders: Folder[] = [
   { id: 'f6', name: 'icons', itemCount: 45 }
 ];
 
+// Generate more mock media for infinite scrolling demo
+const generateMoreMedia = (startId: number, count: number): MediaItem[] => {
+  const types: MediaItem['type'][] = ['image', 'video', 'audio', 'document'];
+  const folders = ['banners', 'videos', 'podcasts', 'documents', 'team', 'icons'];
+  const tagOptions = [['hero', 'homepage'], ['product', 'demo'], ['podcast'], ['whitepaper'], ['team', 'about'], ['icons', 'svg']];
+
+  return Array.from({ length: count }, (_, i) => {
+    const id = startId + i;
+    const typeIndex = id % 4;
+    const type = types[typeIndex];
+    const folder = folders[id % folders.length];
+
+    return {
+      id: `m${id}`,
+      name: `${type}-file-${id}.${type === 'image' ? 'jpg' : type === 'video' ? 'mp4' : type === 'audio' ? 'mp3' : 'pdf'}`,
+      type,
+      url: `/uploads/${type}-file-${id}.${type === 'image' ? 'jpg' : type === 'video' ? 'mp4' : type === 'audio' ? 'mp3' : 'pdf'}`,
+      thumbnail: type === 'image' ? `/thumbnails/${type}-file-${id}.jpg` : undefined,
+      size: Math.floor(Math.random() * 10000000) + 100000,
+      dimensions: type === 'image' || type === 'video' ? { width: 1920, height: 1080 } : undefined,
+      duration: type === 'video' ? Math.floor(Math.random() * 300) + 30 : type === 'audio' ? Math.floor(Math.random() * 3600) + 60 : undefined,
+      mimeType: type === 'image' ? 'image/jpeg' : type === 'video' ? 'video/mp4' : type === 'audio' ? 'audio/mpeg' : 'application/pdf',
+      alt: type === 'image' ? `Alt text for file ${id}` : undefined,
+      caption: `Caption for file ${id}`,
+      uploadedAt: new Date(Date.now() - Math.floor(Math.random() * 30) * 86400000),
+      uploadedBy: 'admin',
+      folder,
+      tags: tagOptions[id % tagOptions.length],
+      starred: id % 7 === 0
+    };
+  });
+};
+
+const ITEMS_PER_PAGE = 20;
+
 export const MediaLibraryPanel: React.FC<MediaLibraryPanelProps> = ({
   onSelect,
   onInsert,
@@ -207,8 +243,54 @@ export const MediaLibraryPanel: React.FC<MediaLibraryPanelProps> = ({
     enableDragDrop: true
   });
 
+  // Infinite scrolling state
+  const [allMedia, setAllMedia] = useState<MediaItem[]>(mockMedia);
+  const [displayedCount, setDisplayedCount] = useState(ITEMS_PER_PAGE);
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const observerTarget = useRef<HTMLDivElement>(null);
+
+  // Simulate loading more data
+  const loadMore = useCallback(() => {
+    if (isLoading || !hasMore) return;
+
+    setIsLoading(true);
+
+    // Simulate API delay
+    setTimeout(() => {
+      const newMedia = generateMoreMedia(allMedia.length + 1, ITEMS_PER_PAGE);
+      setAllMedia(prev => [...prev, ...newMedia]);
+      setDisplayedCount(prev => prev + ITEMS_PER_PAGE);
+      setIsLoading(false);
+
+      // Stop after 200 items for demo
+      if (allMedia.length + newMedia.length >= 200) {
+        setHasMore(false);
+      }
+    }, 500);
+  }, [isLoading, hasMore, allMedia.length]);
+
+  // Intersection Observer for infinite scroll
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !isLoading) {
+          loadMore();
+        }
+      },
+      { threshold: 0.1, rootMargin: '100px' }
+    );
+
+    if (observerTarget.current) {
+      observer.observe(observerTarget.current);
+    }
+
+    return () => observer.disconnect();
+  }, [loadMore, hasMore, isLoading]);
+
   const filteredMedia = useMemo(() => {
-    return mockMedia.filter(item => {
+    return allMedia.filter(item => {
       if (!allowedTypes.includes(item.type)) return false;
       if (filterType !== 'all' && item.type !== filterType) return false;
       if (selectedFolder && item.folder !== selectedFolder) return false;
@@ -292,10 +374,9 @@ export const MediaLibraryPanel: React.FC<MediaLibraryPanelProps> = ({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       className={clsx(
-        'bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col',
+        'bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col h-full',
         className
       )}
-      style={{ height: '600px' }}
     >
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b bg-gradient-to-r from-pink-50 to-rose-50 dark:from-gray-800 dark:to-gray-800">
@@ -430,7 +511,7 @@ export const MediaLibraryPanel: React.FC<MediaLibraryPanelProps> = ({
         </div>
 
         {/* Main Content */}
-        <div className="flex-1 overflow-y-auto p-4">
+        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-4">
           {viewMode === 'grid' ? (
             <div className={clsx('grid gap-4', gridSizeClass[settings.gridSize])}>
               {filteredMedia.map((item, idx) => {
@@ -576,6 +657,21 @@ export const MediaLibraryPanel: React.FC<MediaLibraryPanelProps> = ({
               >
                 Upload new files
               </button>
+            </div>
+          )}
+
+          {/* Infinite scroll observer target */}
+          {filteredMedia.length > 0 && (
+            <div ref={observerTarget} className="py-4 flex items-center justify-center">
+              {isLoading && (
+                <div className="flex items-center gap-2 text-gray-500">
+                  <Loader2 size={20} className="animate-spin" />
+                  <span className="text-sm">Loading more...</span>
+                </div>
+              )}
+              {!hasMore && filteredMedia.length > ITEMS_PER_PAGE && (
+                <p className="text-sm text-gray-400">All {filteredMedia.length} items loaded</p>
+              )}
             </div>
           )}
         </div>

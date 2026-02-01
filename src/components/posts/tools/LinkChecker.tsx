@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Link2,
@@ -20,7 +20,8 @@ import {
   Anchor,
   ArrowUpRight,
   Shield,
-  Zap
+  Zap,
+  Loader2
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -69,115 +70,157 @@ interface LinkCheckerProps {
   className?: string;
 }
 
-const mockLinks: LinkInfo[] = [
-  {
-    id: 'l1',
-    url: 'https://example.com/guide',
-    text: 'Complete Guide',
-    type: 'external',
-    status: 'valid',
-    statusCode: 200,
-    responseTime: 145,
-    position: 1,
-    attributes: { rel: 'noopener noreferrer', target: '_blank' },
-    issues: [],
-    lastChecked: new Date(Date.now() - 60000)
-  },
-  {
-    id: 'l2',
-    url: 'https://broken-link.example.com/page',
-    text: 'Click here',
-    type: 'external',
-    status: 'broken',
-    statusCode: 404,
-    responseTime: 89,
-    position: 2,
-    attributes: { target: '_blank' },
-    issues: [
-      { type: 'generic-text', severity: 'warning', message: 'Generic anchor text "Click here" is not descriptive', suggestion: 'Use descriptive anchor text that explains where the link leads' },
-      { type: 'no-rel', severity: 'warning', message: 'External link missing rel="noopener noreferrer"', suggestion: 'Add rel="noopener noreferrer" for security' }
-    ],
-    lastChecked: new Date(Date.now() - 120000)
-  },
-  {
-    id: 'l3',
-    url: '/blog/react-hooks',
-    text: 'React Hooks Tutorial',
-    type: 'internal',
-    status: 'valid',
-    statusCode: 200,
-    responseTime: 23,
-    position: 3,
-    attributes: {},
-    issues: [],
-    lastChecked: new Date(Date.now() - 180000)
-  },
-  {
-    id: 'l4',
-    url: 'http://insecure-site.com/resource',
-    text: 'Resource Link',
-    type: 'external',
-    status: 'redirect',
-    statusCode: 301,
-    redirectUrl: 'https://insecure-site.com/resource',
-    responseTime: 234,
-    position: 4,
-    attributes: {},
-    issues: [
-      { type: 'no-https', severity: 'error', message: 'Link uses insecure HTTP protocol', suggestion: 'Update to HTTPS for security' }
-    ],
-    lastChecked: new Date(Date.now() - 240000)
-  },
-  {
-    id: 'l5',
-    url: '#section-one',
-    text: 'Jump to Section One',
-    type: 'anchor',
-    status: 'valid',
-    position: 5,
-    attributes: {},
-    issues: [],
-    lastChecked: new Date(Date.now() - 300000)
-  },
-  {
-    id: 'l6',
-    url: 'https://slow-server.example.com/api',
-    text: 'API Documentation',
-    type: 'external',
-    status: 'timeout',
-    responseTime: 30000,
-    position: 6,
-    attributes: { rel: 'noopener', target: '_blank' },
-    issues: [],
-    lastChecked: new Date(Date.now() - 360000)
-  },
-  {
-    id: 'l7',
-    url: 'mailto:contact@example.com',
-    text: 'Contact Us',
-    type: 'mailto',
-    status: 'valid',
-    position: 7,
-    attributes: {},
-    issues: [],
-    lastChecked: new Date(Date.now() - 420000)
-  },
-  {
-    id: 'l8',
-    url: '/blog/old-post',
-    text: '',
-    type: 'internal',
-    status: 'broken',
-    statusCode: 404,
-    responseTime: 45,
-    position: 8,
-    attributes: {},
-    issues: [
-      { type: 'no-text', severity: 'error', message: 'Link has no anchor text', suggestion: 'Add descriptive text between the anchor tags' }
-    ],
-    lastChecked: new Date(Date.now() - 480000)
+// Export status summary for sidebar display
+export interface LinkCheckerStatus {
+  total: number;
+  valid: number;
+  broken: number;
+  warnings: number;
+  checking: boolean;
+}
+
+// Parse links from HTML content
+const parseLinksFromContent = (content: string): LinkInfo[] => {
+  if (!content) return [];
+
+  const links: LinkInfo[] = [];
+  const linkRegex = /<a\s+([^>]*?)href=["']([^"']+)["']([^>]*?)>([^<]*)<\/a>/gi;
+  let match;
+  let position = 0;
+
+  while ((match = linkRegex.exec(content)) !== null) {
+    position++;
+    const beforeHref = match[1] || '';
+    const url = match[2];
+    const afterHref = match[3] || '';
+    const text = match[4];
+    const allAttrs = beforeHref + afterHref;
+
+    // Parse attributes
+    const relMatch = allAttrs.match(/rel=["']([^"']+)["']/);
+    const targetMatch = allAttrs.match(/target=["']([^"']+)["']/);
+    const titleMatch = allAttrs.match(/title=["']([^"']+)["']/);
+
+    // Determine link type
+    let type: LinkInfo['type'] = 'external';
+    if (url.startsWith('#')) type = 'anchor';
+    else if (url.startsWith('mailto:')) type = 'mailto';
+    else if (url.startsWith('tel:')) type = 'tel';
+    else if (url.startsWith('/') || url.startsWith('./') || !url.includes('://')) type = 'internal';
+
+    // Check for issues
+    const issues: LinkIssue[] = [];
+
+    if (!text.trim()) {
+      issues.push({
+        type: 'no-text',
+        severity: 'error',
+        message: 'Link has no anchor text',
+        suggestion: 'Add descriptive text between the anchor tags'
+      });
+    }
+
+    const genericTexts = ['click here', 'here', 'link', 'read more', 'learn more', 'more'];
+    if (genericTexts.includes(text.toLowerCase().trim())) {
+      issues.push({
+        type: 'generic-text',
+        severity: 'warning',
+        message: `Generic anchor text "${text}" is not descriptive`,
+        suggestion: 'Use descriptive anchor text that explains where the link leads'
+      });
+    }
+
+    if (type === 'external' && url.startsWith('http://')) {
+      issues.push({
+        type: 'no-https',
+        severity: 'error',
+        message: 'Link uses insecure HTTP protocol',
+        suggestion: 'Update to HTTPS for security'
+      });
+    }
+
+    if (type === 'external' && !relMatch) {
+      issues.push({
+        type: 'no-rel',
+        severity: 'warning',
+        message: 'External link missing rel="noopener noreferrer"',
+        suggestion: 'Add rel="noopener noreferrer" for security'
+      });
+    }
+
+    links.push({
+      id: `link-${position}`,
+      url,
+      text,
+      type,
+      status: 'pending',
+      position,
+      attributes: {
+        rel: relMatch?.[1],
+        target: targetMatch?.[1],
+        title: titleMatch?.[1]
+      },
+      issues
+    });
   }
-];
+
+  return links;
+};
+
+// Check a single link
+const checkLink = async (link: LinkInfo, timeout: number = 10000): Promise<LinkInfo> => {
+  // Skip non-http links
+  if (link.type === 'anchor' || link.type === 'mailto' || link.type === 'tel') {
+    return { ...link, status: 'valid', lastChecked: new Date() };
+  }
+
+  try {
+    const startTime = Date.now();
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+    // Use HEAD request to check link, fall back to no-cors mode for cross-origin
+    const response = await fetch(link.url, {
+      method: 'HEAD',
+      mode: 'no-cors',
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+    const responseTime = Date.now() - startTime;
+
+    // In no-cors mode, we can't read the status, so assume it's valid if no error
+    // For same-origin or CORS-enabled URLs, we can read the actual status
+    let status: LinkInfo['status'] = 'valid';
+    let statusCode: number | undefined;
+
+    if (response.type !== 'opaque') {
+      statusCode = response.status;
+      if (response.status >= 200 && response.status < 300) {
+        status = 'valid';
+      } else if (response.status >= 300 && response.status < 400) {
+        status = 'redirect';
+      } else {
+        status = 'broken';
+      }
+    }
+
+    return {
+      ...link,
+      status,
+      statusCode,
+      responseTime,
+      lastChecked: new Date()
+    };
+  } catch (error: any) {
+    if (error.name === 'AbortError') {
+      return { ...link, status: 'timeout', lastChecked: new Date() };
+    }
+    // Network errors in no-cors mode might still mean the link exists
+    // We'll mark as unknown but not broken since we can't verify
+    return { ...link, status: 'unknown', lastChecked: new Date() };
+  }
+};
 
 export const LinkChecker: React.FC<LinkCheckerProps> = ({
   content,
@@ -186,7 +229,9 @@ export const LinkChecker: React.FC<LinkCheckerProps> = ({
   onLinkRemove,
   className
 }) => {
+  const [links, setLinks] = useState<LinkInfo[]>([]);
   const [isChecking, setIsChecking] = useState(false);
+  const [checkProgress, setCheckProgress] = useState(0);
   const [showSettings, setShowSettings] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<string>('all');
@@ -203,21 +248,33 @@ export const LinkChecker: React.FC<LinkCheckerProps> = ({
     showIssuesOnly: false
   });
 
+  // Parse links when content changes
+  useEffect(() => {
+    const parsedLinks = parseLinksFromContent(content || '');
+    setLinks(parsedLinks);
+
+    // Auto-check if enabled
+    if (settings.autoCheck && parsedLinks.length > 0) {
+      handleCheckAll(parsedLinks);
+    }
+  }, [content]);
+
   const stats = useMemo(() => {
     return {
-      total: mockLinks.length,
-      valid: mockLinks.filter(l => l.status === 'valid').length,
-      broken: mockLinks.filter(l => l.status === 'broken').length,
-      redirects: mockLinks.filter(l => l.status === 'redirect').length,
-      timeout: mockLinks.filter(l => l.status === 'timeout').length,
-      issues: mockLinks.reduce((acc, l) => acc + l.issues.length, 0),
-      internal: mockLinks.filter(l => l.type === 'internal').length,
-      external: mockLinks.filter(l => l.type === 'external').length
+      total: links.length,
+      valid: links.filter(l => l.status === 'valid').length,
+      broken: links.filter(l => l.status === 'broken').length,
+      redirects: links.filter(l => l.status === 'redirect').length,
+      timeout: links.filter(l => l.status === 'timeout').length,
+      pending: links.filter(l => l.status === 'pending').length,
+      issues: links.reduce((acc, l) => acc + l.issues.length, 0),
+      internal: links.filter(l => l.type === 'internal').length,
+      external: links.filter(l => l.type === 'external').length
     };
-  }, []);
+  }, [links]);
 
   const filteredLinks = useMemo(() => {
-    return mockLinks.filter(link => {
+    return links.filter(link => {
       if (searchQuery && !link.url.toLowerCase().includes(searchQuery.toLowerCase()) &&
           !link.text.toLowerCase().includes(searchQuery.toLowerCase())) {
         return false;
@@ -227,13 +284,39 @@ export const LinkChecker: React.FC<LinkCheckerProps> = ({
       if (settings.showIssuesOnly && link.issues.length === 0) return false;
       return true;
     });
-  }, [searchQuery, filterType, filterStatus, settings.showIssuesOnly]);
+  }, [links, searchQuery, filterType, filterStatus, settings.showIssuesOnly]);
 
-  const handleCheckAll = async () => {
+  const handleCheckAll = useCallback(async (linksToCheck?: LinkInfo[]) => {
+    const checkList = linksToCheck || links;
+    if (checkList.length === 0) return;
+
     setIsChecking(true);
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    setCheckProgress(0);
+
+    const results: LinkInfo[] = [];
+
+    for (let i = 0; i < checkList.length; i++) {
+      const link = checkList[i];
+      const checkedLink = await checkLink(link, settings.timeout);
+      results.push(checkedLink);
+      setCheckProgress(Math.round(((i + 1) / checkList.length) * 100));
+
+      // Update state progressively for real-time feedback
+      setLinks(prev => prev.map(l => l.id === checkedLink.id ? checkedLink : l));
+    }
+
     setIsChecking(false);
-  };
+    setCheckProgress(0);
+  }, [links, settings.timeout]);
+
+  const handleCheckSingle = useCallback(async (linkId: string) => {
+    const link = links.find(l => l.id === linkId);
+    if (!link) return;
+
+    setLinks(prev => prev.map(l => l.id === linkId ? { ...l, status: 'pending' } : l));
+    const checkedLink = await checkLink(link, settings.timeout);
+    setLinks(prev => prev.map(l => l.id === linkId ? checkedLink : l));
+  }, [links, settings.timeout]);
 
   const getStatusIcon = (status: LinkInfo['status']) => {
     switch (status) {
@@ -241,7 +324,7 @@ export const LinkChecker: React.FC<LinkCheckerProps> = ({
       case 'broken': return <XCircle size={16} className="text-red-500" />;
       case 'redirect': return <ArrowUpRight size={16} className="text-amber-500" />;
       case 'timeout': return <Clock size={16} className="text-orange-500" />;
-      case 'pending': return <RefreshCw size={16} className="text-blue-500 animate-spin" />;
+      case 'pending': return <Loader2 size={16} className="text-blue-500 animate-spin" />;
       default: return <AlertTriangle size={16} className="text-gray-500" />;
     }
   };
@@ -261,6 +344,15 @@ export const LinkChecker: React.FC<LinkCheckerProps> = ({
     navigator.clipboard.writeText(url);
   };
 
+  // Status summary for sidebar - can be exported and used
+  const statusSummary: LinkCheckerStatus = {
+    total: stats.total,
+    valid: stats.valid,
+    broken: stats.broken,
+    warnings: stats.issues,
+    checking: isChecking
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -273,22 +365,63 @@ export const LinkChecker: React.FC<LinkCheckerProps> = ({
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-gray-800 dark:to-gray-800">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-cyan-100 dark:bg-cyan-900 rounded-lg">
+          <div className="p-2 bg-cyan-100 dark:bg-cyan-900 rounded-lg relative">
             <Link2 size={20} className="text-cyan-600 dark:text-cyan-400" />
+            {/* Status indicator badges */}
+            {stats.broken > 0 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center">
+                {stats.broken}
+              </span>
+            )}
           </div>
           <div>
-            <h2 className="font-semibold text-gray-900 dark:text-white">Link Checker</h2>
-            <p className="text-sm text-gray-500">Validate all links in your content</p>
+            <h2 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              Link Checker
+              {/* Real-time status icons */}
+              <span className="flex items-center gap-1 ml-2">
+                {stats.valid > 0 && (
+                  <span className="flex items-center gap-0.5 text-xs text-green-600 bg-green-100 px-1.5 py-0.5 rounded">
+                    <CheckCircle size={12} />
+                    {stats.valid}
+                  </span>
+                )}
+                {stats.broken > 0 && (
+                  <span className="flex items-center gap-0.5 text-xs text-red-600 bg-red-100 px-1.5 py-0.5 rounded">
+                    <XCircle size={12} />
+                    {stats.broken}
+                  </span>
+                )}
+                {stats.issues > 0 && (
+                  <span className="flex items-center gap-0.5 text-xs text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded">
+                    <AlertTriangle size={12} />
+                    {stats.issues}
+                  </span>
+                )}
+              </span>
+            </h2>
+            <p className="text-sm text-gray-500">
+              {links.length === 0 ? 'No links found in content' : `${links.length} links found`}
+              {isChecking && ` - Checking ${checkProgress}%`}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={handleCheckAll}
-            disabled={isChecking}
+            onClick={() => handleCheckAll()}
+            disabled={isChecking || links.length === 0}
             className="px-3 py-1.5 text-sm bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 flex items-center gap-2 disabled:opacity-50"
           >
-            <RefreshCw size={14} className={clsx(isChecking && 'animate-spin')} />
-            {isChecking ? 'Checking...' : 'Check All'}
+            {isChecking ? (
+              <>
+                <Loader2 size={14} className="animate-spin" />
+                {checkProgress}%
+              </>
+            ) : (
+              <>
+                <RefreshCw size={14} />
+                Check All
+              </>
+            )}
           </button>
           <button
             onClick={() => setShowSettings(!showSettings)}
@@ -302,19 +435,45 @@ export const LinkChecker: React.FC<LinkCheckerProps> = ({
         </div>
       </div>
 
-      {/* Stats Bar */}
+      {/* Real-time Status Bar */}
+      {isChecking && (
+        <div className="h-1 bg-gray-200">
+          <motion.div
+            className="h-full bg-cyan-500"
+            initial={{ width: 0 }}
+            animate={{ width: `${checkProgress}%` }}
+          />
+        </div>
+      )}
+
+      {/* Stats Bar with Status Icons */}
       <div className="grid grid-cols-5 divide-x border-b">
         {[
-          { label: 'Total', value: stats.total, color: 'gray' },
-          { label: 'Valid', value: stats.valid, color: 'green' },
-          { label: 'Broken', value: stats.broken, color: 'red' },
-          { label: 'Redirects', value: stats.redirects, color: 'amber' },
-          { label: 'Issues', value: stats.issues, color: 'orange' }
+          { label: 'Total', value: stats.total, icon: Link2, color: 'gray' },
+          { label: 'Valid', value: stats.valid, icon: CheckCircle, color: 'green' },
+          { label: 'Broken', value: stats.broken, icon: XCircle, color: 'red' },
+          { label: 'Redirects', value: stats.redirects, icon: ArrowUpRight, color: 'amber' },
+          { label: 'Issues', value: stats.issues, icon: AlertTriangle, color: 'orange' }
         ].map(stat => (
-          <div key={stat.label} className="p-3 text-center">
-            <div className={`text-xl font-bold text-${stat.color}-600`}>{stat.value}</div>
+          <button
+            key={stat.label}
+            onClick={() => {
+              if (stat.label === 'Valid') setFilterStatus('valid');
+              else if (stat.label === 'Broken') setFilterStatus('broken');
+              else if (stat.label === 'Redirects') setFilterStatus('redirect');
+              else setFilterStatus('all');
+            }}
+            className={clsx(
+              'p-3 text-center hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors',
+              filterStatus === stat.label.toLowerCase() && 'bg-gray-100 dark:bg-gray-800'
+            )}
+          >
+            <div className="flex items-center justify-center gap-1">
+              <stat.icon size={16} className={`text-${stat.color}-500`} />
+              <span className={`text-xl font-bold text-${stat.color}-600`}>{stat.value}</span>
+            </div>
             <div className="text-xs text-gray-500">{stat.label}</div>
-          </div>
+          </button>
         ))}
       </div>
 
@@ -402,6 +561,7 @@ export const LinkChecker: React.FC<LinkCheckerProps> = ({
           <option value="broken">Broken</option>
           <option value="redirect">Redirect</option>
           <option value="timeout">Timeout</option>
+          <option value="pending">Pending</option>
         </select>
       </div>
 
@@ -412,10 +572,11 @@ export const LinkChecker: React.FC<LinkCheckerProps> = ({
             key={link.id}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: idx * 0.05 }}
+            transition={{ delay: idx * 0.03 }}
             className={clsx(
               'hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors',
-              link.status === 'broken' && 'bg-red-50/50 dark:bg-red-900/10'
+              link.status === 'broken' && 'bg-red-50/50 dark:bg-red-900/10',
+              link.issues.length > 0 && link.status !== 'broken' && 'bg-amber-50/50 dark:bg-amber-900/10'
             )}
           >
             <div
@@ -473,6 +634,16 @@ export const LinkChecker: React.FC<LinkCheckerProps> = ({
                 </div>
 
                 <div className="flex items-center gap-2">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCheckSingle(link.id);
+                    }}
+                    className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
+                    title="Re-check link"
+                  >
+                    <RefreshCw size={14} />
+                  </button>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -600,11 +771,66 @@ export const LinkChecker: React.FC<LinkCheckerProps> = ({
       {filteredLinks.length === 0 && (
         <div className="p-8 text-center text-gray-500">
           <Link2 size={32} className="mx-auto mb-2 opacity-50" />
-          <p>No links found matching your criteria</p>
+          {links.length === 0 ? (
+            <p>No links found in the content</p>
+          ) : (
+            <p>No links found matching your criteria</p>
+          )}
         </div>
       )}
     </motion.div>
   );
+};
+
+// Export a hook for getting link status summary (for sidebar display)
+export const useLinkCheckerStatus = (content?: string): LinkCheckerStatus => {
+  const [status, setStatus] = useState<LinkCheckerStatus>({
+    total: 0,
+    valid: 0,
+    broken: 0,
+    warnings: 0,
+    checking: false
+  });
+
+  useEffect(() => {
+    const links = parseLinksFromContent(content || '');
+    const issues = links.reduce((acc, l) => acc + l.issues.length, 0);
+
+    setStatus({
+      total: links.length,
+      valid: 0,
+      broken: 0,
+      warnings: issues,
+      checking: true
+    });
+
+    // Check links asynchronously
+    const checkLinks = async () => {
+      let valid = 0;
+      let broken = 0;
+
+      for (const link of links) {
+        const checked = await checkLink(link);
+        if (checked.status === 'valid') valid++;
+        else if (checked.status === 'broken') broken++;
+      }
+
+      setStatus(prev => ({
+        ...prev,
+        valid,
+        broken,
+        checking: false
+      }));
+    };
+
+    if (links.length > 0) {
+      checkLinks();
+    } else {
+      setStatus(prev => ({ ...prev, checking: false }));
+    }
+  }, [content]);
+
+  return status;
 };
 
 export default LinkChecker;

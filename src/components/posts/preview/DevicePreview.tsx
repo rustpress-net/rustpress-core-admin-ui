@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo, useCallback } from 'react'
+import { useState, useRef, useMemo, useCallback, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Monitor,
@@ -21,16 +21,49 @@ import {
   Grid3X3,
   FileText,
   Loader2,
+  PanelLeft,
+  PanelRight,
 } from 'lucide-react'
 import clsx from 'clsx'
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
+
+interface PostSettings {
+  showHeader?: boolean;
+  showFooter?: boolean;
+  showSidebar?: boolean;
+  sidebarPosition?: 'left' | 'right';
+  sidebarId?: string | null;
+}
+
+interface ThemeData {
+  name: string;
+  slug: string;
+  header_html?: string;
+  footer_html?: string;
+  styles_css?: string;
+}
+
+interface SidebarData {
+  id: string;
+  name: string;
+  widgets?: Array<{
+    type: string;
+    title?: string;
+    content?: string;
+  }>;
+}
 
 interface DevicePreviewProps {
   content: string
   title: string
   className?: string
   onClose?: () => void
+  postSettings?: PostSettings
+  featuredImage?: { url: string; alt?: string } | null
+  author?: string
+  publishDate?: string
+  categories?: string[]
 }
 
 interface Device {
@@ -306,6 +339,17 @@ export default function DevicePreview({
   title,
   className,
   onClose,
+  postSettings = {
+    showHeader: true,
+    showFooter: true,
+    showSidebar: true,
+    sidebarPosition: 'right',
+    sidebarId: null,
+  },
+  featuredImage,
+  author = 'Admin',
+  publishDate,
+  categories = [],
 }: DevicePreviewProps) {
   const [selectedDevice, setSelectedDevice] = useState(devices.find(d => d.id === 'iphone-15-pro') || devices[0])
   const [selectedCategory, setSelectedCategory] = useState('all')
@@ -318,8 +362,61 @@ export default function DevicePreview({
   const [autoFit, setAutoFit] = useState(true)  // Auto-fit to container
   const [isGeneratingReport, setIsGeneratingReport] = useState(false)
 
+  // Theme and layout settings
+  const [themeData, setThemeData] = useState<ThemeData | null>(null)
+  const [sidebarData, setSidebarData] = useState<SidebarData | null>(null)
+  const [localPostSettings, setLocalPostSettings] = useState<PostSettings>(postSettings)
+  const [availableSidebars, setAvailableSidebars] = useState<SidebarData[]>([])
+
   const containerRef = useRef<HTMLDivElement>(null)
   const reportContainerRef = useRef<HTMLDivElement>(null)
+
+  // Fetch theme and sidebar data
+  useEffect(() => {
+    const fetchThemeData = async () => {
+      try {
+        const token = localStorage.getItem('token');
+
+        // Fetch active theme
+        const themeResponse = await fetch('/api/v1/themes/active', {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        if (themeResponse.ok) {
+          const themeResult = await themeResponse.json();
+          setThemeData(themeResult.data);
+        }
+
+        // Fetch available sidebars
+        const sidebarsResponse = await fetch('/api/v1/sidebars', {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        if (sidebarsResponse.ok) {
+          const sidebarsResult = await sidebarsResponse.json();
+          const sidebars = sidebarsResult.data || sidebarsResult || [];
+          setAvailableSidebars(
+            Array.isArray(sidebars) ? sidebars : []
+          );
+
+          // If a sidebar ID is set, fetch its data
+          if (localPostSettings.sidebarId) {
+            const selectedSidebar = sidebars.find((s: SidebarData) => s.id === localPostSettings.sidebarId);
+            if (selectedSidebar) {
+              setSidebarData(selectedSidebar);
+            }
+          }
+        }
+      } catch (err) {
+        console.log('Could not fetch theme/sidebar data, using defaults');
+      }
+    };
+
+    fetchThemeData();
+  }, [localPostSettings.sidebarId]);
+
+  // Update local settings when props change
+  useEffect(() => {
+    setLocalPostSettings(postSettings);
+  }, [postSettings]);
 
   const filteredDevices = useMemo(() => {
     if (selectedCategory === 'all') return devices
@@ -605,6 +702,106 @@ export default function DevicePreview({
   const generatePreviewHTML = () => {
     const isMobile = selectedDevice.category === 'mobile' || selectedDevice.category === 'wearable'
     const isTablet = selectedDevice.category === 'tablet'
+    const showHeader = localPostSettings.showHeader !== false
+    const showFooter = localPostSettings.showFooter !== false
+    const showSidebar = localPostSettings.showSidebar && !isMobile // Hide sidebar on mobile
+    const sidebarPosition = localPostSettings.sidebarPosition || 'right'
+    const themeName = themeData?.name || 'RustPress'
+
+    // Generate sidebar HTML based on selected sidebar data
+    const generateSidebarHTML = () => {
+      if (!showSidebar) return ''
+
+      const sidebarName = sidebarData?.name || 'Blog Sidebar'
+      const widgets = sidebarData?.widgets || [
+        { type: 'search', title: 'Search' },
+        { type: 'categories', title: 'Categories' },
+        { type: 'recent_posts', title: 'Recent Posts' },
+        { type: 'tags', title: 'Tags' },
+      ]
+
+      const widgetHTML = widgets.map(widget => {
+        switch (widget.type) {
+          case 'search':
+            return `
+              <div class="sidebar-widget">
+                <h4 class="widget-title">${widget.title || 'Search'}</h4>
+                <div class="search-form">
+                  <input type="text" placeholder="Search..." class="search-input" />
+                  <button class="search-btn">🔍</button>
+                </div>
+              </div>
+            `
+          case 'categories':
+            return `
+              <div class="sidebar-widget">
+                <h4 class="widget-title">${widget.title || 'Categories'}</h4>
+                <ul class="widget-list">
+                  <li><a href="#">Technology</a> <span class="count">(12)</span></li>
+                  <li><a href="#">Lifestyle</a> <span class="count">(8)</span></li>
+                  <li><a href="#">Travel</a> <span class="count">(5)</span></li>
+                  <li><a href="#">Business</a> <span class="count">(3)</span></li>
+                </ul>
+              </div>
+            `
+          case 'recent_posts':
+            return `
+              <div class="sidebar-widget">
+                <h4 class="widget-title">${widget.title || 'Recent Posts'}</h4>
+                <ul class="recent-posts">
+                  <li><a href="#">Getting Started with RustPress</a><span class="date">Jan 15, 2024</span></li>
+                  <li><a href="#">10 Tips for Better Blogging</a><span class="date">Jan 12, 2024</span></li>
+                  <li><a href="#">Theme Customization Guide</a><span class="date">Jan 10, 2024</span></li>
+                </ul>
+              </div>
+            `
+          case 'tags':
+            return `
+              <div class="sidebar-widget">
+                <h4 class="widget-title">${widget.title || 'Tags'}</h4>
+                <div class="tag-cloud">
+                  <a href="#" class="tag">rust</a>
+                  <a href="#" class="tag">cms</a>
+                  <a href="#" class="tag">web</a>
+                  <a href="#" class="tag">development</a>
+                  <a href="#" class="tag">tutorial</a>
+                </div>
+              </div>
+            `
+          case 'newsletter':
+            return `
+              <div class="sidebar-widget">
+                <h4 class="widget-title">${widget.title || 'Newsletter'}</h4>
+                <p class="widget-desc">Subscribe to get the latest updates.</p>
+                <input type="email" placeholder="Your email..." class="newsletter-input" />
+                <button class="newsletter-btn">Subscribe</button>
+              </div>
+            `
+          default:
+            return `
+              <div class="sidebar-widget">
+                <h4 class="widget-title">${widget.title || 'Widget'}</h4>
+                <p>${widget.content || 'Widget content'}</p>
+              </div>
+            `
+        }
+      }).join('')
+
+      return `
+        <aside class="site-sidebar">
+          <div class="sidebar-header">
+            <span class="sidebar-name">${sidebarName}</span>
+          </div>
+          ${widgetHTML}
+        </aside>
+      `
+    }
+
+    // Calculate reading time
+    const wordCount = content ? content.split(/\s+/).filter(Boolean).length : 0
+    const readingTime = Math.max(1, Math.ceil(wordCount / 200))
+    const displayDate = publishDate || new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+    const categoryBadges = categories.length > 0 ? categories : ['Technology']
 
     return `
       <!DOCTYPE html>
@@ -629,10 +826,7 @@ export default function DevicePreview({
             --radius-sm: 0.375rem;
             --radius-md: 0.5rem;
             --radius-lg: 0.75rem;
-            --spacing-sm: 0.5rem;
-            --spacing-md: 1rem;
-            --spacing-lg: 1.5rem;
-            --spacing-xl: 2rem;
+            --sidebar-width: ${isTablet ? '240px' : '300px'};
           }
           * { box-sizing: border-box; margin: 0; padding: 0; }
           body {
@@ -655,7 +849,7 @@ export default function DevicePreview({
             display: flex;
             align-items: center;
             justify-content: space-between;
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
           }
           .site-logo {
@@ -688,13 +882,122 @@ export default function DevicePreview({
             border: none;
             padding: 0.5rem;
             cursor: pointer;
+            font-size: 1.5rem;
           }
 
-          /* Main Content */
-          .site-content {
-            padding: ${isMobile ? '1rem' : isTablet ? '1.5rem' : '2rem'};
-            max-width: 800px;
+          /* Main Layout with Sidebar */
+          .site-main {
+            display: ${showSidebar ? 'grid' : 'block'};
+            ${showSidebar ? `grid-template-columns: ${sidebarPosition === 'left' ? 'var(--sidebar-width) 1fr' : '1fr var(--sidebar-width)'};` : ''}
+            gap: 2rem;
+            max-width: 1400px;
             margin: 0 auto;
+            padding: ${isMobile ? '1rem' : isTablet ? '1.5rem' : '2rem'};
+          }
+
+          /* Sidebar */
+          .site-sidebar {
+            ${showSidebar ? '' : 'display: none;'}
+            ${sidebarPosition === 'left' ? 'order: -1;' : ''}
+          }
+          .sidebar-header {
+            padding: 0.75rem 1rem;
+            background: var(--color-bg-alt);
+            border-radius: var(--radius-md);
+            margin-bottom: 1rem;
+          }
+          .sidebar-name {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--color-text-light);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+          }
+          .sidebar-widget {
+            background: var(--color-bg);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-lg);
+            padding: 1rem;
+            margin-bottom: 1rem;
+          }
+          .widget-title {
+            font-size: 0.875rem;
+            font-weight: 700;
+            margin-bottom: 0.75rem;
+            color: var(--color-text);
+          }
+          .widget-list { list-style: none; }
+          .widget-list li {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--color-border);
+            font-size: 0.875rem;
+          }
+          .widget-list li:last-child { border: none; }
+          .widget-list a { color: var(--color-text); text-decoration: none; }
+          .widget-list a:hover { color: var(--color-primary); }
+          .widget-list .count { color: var(--color-text-light); font-size: 0.75rem; }
+          .recent-posts { list-style: none; }
+          .recent-posts li {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--color-border);
+          }
+          .recent-posts li:last-child { border: none; }
+          .recent-posts a { color: var(--color-text); text-decoration: none; font-size: 0.875rem; display: block; }
+          .recent-posts a:hover { color: var(--color-primary); }
+          .recent-posts .date { font-size: 0.75rem; color: var(--color-text-light); display: block; margin-top: 0.25rem; }
+          .tag-cloud { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+          .tag {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            background: var(--color-bg-alt);
+            border-radius: var(--radius-sm);
+            font-size: 0.75rem;
+            color: var(--color-text);
+            text-decoration: none;
+          }
+          .tag:hover { background: var(--color-primary); color: white; }
+          .search-form { display: flex; gap: 0.5rem; }
+          .search-input {
+            flex: 1;
+            padding: 0.5rem;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm);
+            font-size: 0.875rem;
+          }
+          .search-btn {
+            padding: 0.5rem 0.75rem;
+            background: var(--color-primary);
+            color: white;
+            border: none;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+          }
+          .widget-desc { font-size: 0.875rem; color: var(--color-text-light); margin-bottom: 0.75rem; }
+          .newsletter-input {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm);
+            font-size: 0.875rem;
+            margin-bottom: 0.5rem;
+          }
+          .newsletter-btn {
+            width: 100%;
+            padding: 0.5rem;
+            background: var(--color-primary);
+            color: white;
+            border: none;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-weight: 500;
+          }
+
+          /* Post Content Area */
+          .site-content {
+            max-width: ${showSidebar ? '100%' : '800px'};
+            margin: ${showSidebar ? '0' : '0 auto'};
           }
 
           /* Breadcrumbs */
@@ -712,6 +1015,7 @@ export default function DevicePreview({
 
           /* Post Header */
           .post-header { margin-bottom: 1.5rem; }
+          .category-badges { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem; }
           .category-badge {
             display: inline-block;
             padding: 0.25rem 0.5rem;
@@ -721,7 +1025,6 @@ export default function DevicePreview({
             font-weight: 600;
             text-transform: uppercase;
             border-radius: var(--radius-sm);
-            margin-bottom: 0.5rem;
           }
           .post-title {
             font-family: var(--font-heading);
@@ -841,7 +1144,7 @@ export default function DevicePreview({
           }
           .footer-main {
             padding: ${isMobile ? '1.5rem 1rem' : '2rem 1.5rem'};
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
           }
           .footer-widgets {
@@ -866,19 +1169,23 @@ export default function DevicePreview({
             display: flex;
             ${isMobile ? 'flex-direction: column; gap: 0.5rem;' : 'justify-content: space-between;'}
             align-items: center;
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
             font-size: 0.75rem;
           }
           .footer-nav { display: flex; gap: 1rem; }
           .footer-nav a { color: #9CA3AF; text-decoration: none; }
+
+          /* Theme custom styles */
+          ${themeData?.styles_css || ''}
         </style>
       </head>
       <body>
+        ${showHeader ? `
         <!-- Header -->
         <header class="site-header">
           <div class="header-inner">
-            <div class="site-logo">RustPress</div>
+            <div class="site-logo">${themeName}</div>
             <nav>
               <ul class="nav-menu">
                 <li><a href="#">Home</a></li>
@@ -891,54 +1198,68 @@ export default function DevicePreview({
             <button class="mobile-menu-btn">☰</button>
           </div>
         </header>
+        ` : ''}
 
-        <!-- Main Content -->
-        <main class="site-content">
-          <!-- Breadcrumbs -->
-          <nav class="breadcrumbs">
-            <a href="#">Home</a> / <a href="#">Blog</a> / <span>${title || 'Untitled Post'}</span>
-          </nav>
+        <!-- Main Layout -->
+        <div class="site-main">
+          ${sidebarPosition === 'left' ? generateSidebarHTML() : ''}
 
-          <!-- Post Header -->
-          <header class="post-header">
-            <span class="category-badge">Technology</span>
-            <h1 class="post-title">${title || 'Untitled Post'}</h1>
-            <div class="post-meta">
-              <div class="meta-item">
-                <div class="author-avatar">A</div>
-                <span>Admin</span>
+          <!-- Post Content Area -->
+          <main class="site-content">
+            <!-- Breadcrumbs -->
+            <nav class="breadcrumbs">
+              <a href="#">Home</a> / <a href="#">Blog</a> / <span>${title || 'Untitled Post'}</span>
+            </nav>
+
+            <!-- Post Header -->
+            <header class="post-header">
+              <div class="category-badges">
+                ${categoryBadges.map(cat => `<span class="category-badge">${cat}</span>`).join('')}
               </div>
-              <div class="meta-item">📅 ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
-              <div class="meta-item">⏱ 3 min read</div>
+              <h1 class="post-title">${title || 'Untitled Post'}</h1>
+              <div class="post-meta">
+                <div class="meta-item">
+                  <div class="author-avatar">${author.charAt(0).toUpperCase()}</div>
+                  <span>${author}</span>
+                </div>
+                <div class="meta-item">📅 ${displayDate}</div>
+                <div class="meta-item">⏱ ${readingTime} min read</div>
+              </div>
+            </header>
+
+            <!-- Featured Image -->
+            <div class="featured-image">
+              ${featuredImage?.url
+                ? `<img src="${featuredImage.url}" alt="${featuredImage.alt || title || ''}" />`
+                : '<div class="featured-placeholder">Featured Image</div>'
+              }
             </div>
-          </header>
 
-          <!-- Featured Image -->
-          <div class="featured-image">
-            <div class="featured-placeholder">Featured Image</div>
-          </div>
-
-          <!-- Post Content -->
-          <div class="post-content">
-            ${content || '<p>Your post content will appear here...</p>'}
-          </div>
-
-          <!-- Author Box -->
-          <div class="author-box">
-            <div class="author-box-avatar">A</div>
-            <div class="author-box-info">
-              <h4>Written by Admin</h4>
-              <p>Site administrator and content creator. Passionate about sharing knowledge.</p>
+            <!-- Post Content -->
+            <div class="post-content">
+              ${content || '<p>Your post content will appear here...</p>'}
             </div>
-          </div>
-        </main>
 
+            <!-- Author Box -->
+            <div class="author-box">
+              <div class="author-box-avatar">${author.charAt(0).toUpperCase()}</div>
+              <div class="author-box-info">
+                <h4>Written by ${author}</h4>
+                <p>Site author and content creator. Passionate about sharing knowledge.</p>
+              </div>
+            </div>
+          </main>
+
+          ${sidebarPosition === 'right' ? generateSidebarHTML() : ''}
+        </div>
+
+        ${showFooter ? `
         <!-- Footer -->
         <footer class="site-footer">
           <div class="footer-main">
             <div class="footer-widgets">
               <div class="footer-widget">
-                <h3>RustPress</h3>
+                <h3>${themeName}</h3>
                 <p>A modern developer-focused CMS built with Rust.</p>
               </div>
               <div class="footer-widget">
@@ -965,13 +1286,14 @@ export default function DevicePreview({
             </div>
           </div>
           <div class="footer-bottom">
-            <p>© ${new Date().getFullYear()} RustPress. All rights reserved.</p>
+            <p>© ${new Date().getFullYear()} ${themeName}. All rights reserved.</p>
             <nav class="footer-nav">
               <a href="#">Privacy</a>
               <a href="#">Terms</a>
             </nav>
           </div>
         </footer>
+        ` : ''}
       </body>
       </html>
     `
@@ -1297,7 +1619,7 @@ export default function DevicePreview({
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700"
           >
-            <div className="p-4 grid grid-cols-3 gap-6">
+            <div className="p-4 grid grid-cols-4 gap-6">
               <div>
                 <h4 className="font-medium mb-2 text-gray-900 dark:text-white">Display Options</h4>
                 <div className="space-y-2">
@@ -1331,6 +1653,84 @@ export default function DevicePreview({
                 </div>
               </div>
 
+              <div>
+                <h4 className="font-medium mb-2 text-gray-900 dark:text-white">Theme Layout</h4>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={localPostSettings.showHeader !== false}
+                      onChange={e => setLocalPostSettings(prev => ({ ...prev, showHeader: e.target.checked }))}
+                      className="rounded border-gray-300"
+                    />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">Show Header</span>
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={localPostSettings.showFooter !== false}
+                      onChange={e => setLocalPostSettings(prev => ({ ...prev, showFooter: e.target.checked }))}
+                      className="rounded border-gray-300"
+                    />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">Show Footer</span>
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={localPostSettings.showSidebar || false}
+                      onChange={e => setLocalPostSettings(prev => ({ ...prev, showSidebar: e.target.checked }))}
+                      className="rounded border-gray-300"
+                    />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">Show Sidebar</span>
+                  </label>
+                  {localPostSettings.showSidebar && (
+                    <div className="flex items-center gap-2 pl-6">
+                      <button
+                        onClick={() => setLocalPostSettings(prev => ({ ...prev, sidebarPosition: 'left' }))}
+                        className={clsx(
+                          'p-1.5 rounded',
+                          localPostSettings.sidebarPosition === 'left'
+                            ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-600'
+                            : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700'
+                        )}
+                        title="Sidebar Left"
+                      >
+                        <PanelLeft className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => setLocalPostSettings(prev => ({ ...prev, sidebarPosition: 'right' }))}
+                        className={clsx(
+                          'p-1.5 rounded',
+                          localPostSettings.sidebarPosition === 'right'
+                            ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-600'
+                            : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700'
+                        )}
+                        title="Sidebar Right"
+                      >
+                        <PanelRight className="w-4 h-4" />
+                      </button>
+                      {availableSidebars.length > 0 && (
+                        <select
+                          value={localPostSettings.sidebarId || ''}
+                          onChange={e => {
+                            const sidebarId = e.target.value || null
+                            setLocalPostSettings(prev => ({ ...prev, sidebarId }))
+                            const selected = availableSidebars.find(s => s.id === sidebarId)
+                            setSidebarData(selected || null)
+                          }}
+                          className="text-xs bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded px-2 py-1"
+                        >
+                          <option value="">Default Sidebar</option>
+                          {availableSidebars.map(s => (
+                            <option key={s.id} value={s.id}>{s.name}</option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
               <div className={autoFit ? 'opacity-50' : ''}>
                 <h4 className="font-medium mb-2 text-gray-900 dark:text-white">
                   Zoom Level {autoFit && <span className="text-xs text-gray-400">(auto)</span>}
@@ -1353,7 +1753,7 @@ export default function DevicePreview({
 
               <div>
                 <h4 className="font-medium mb-2">Actions</h4>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <button className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 rounded-lg text-sm hover:bg-gray-200 dark:hover:bg-gray-600">
                     <Download className="w-4 h-4" />
                     Screenshot
