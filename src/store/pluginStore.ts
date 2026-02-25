@@ -128,7 +128,7 @@ const defaultPlugins: InstalledPlugin[] = [
     isRustPlugin: true,
     showInMenu: true,
     menuLabel: 'RustCommerce',
-    menuHref: '/plugins/rust-commerce',
+    menuHref: '/store',
     settings: {},
     installedAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),

@@ -50,6 +50,7 @@ const ThemeEditorFull = lazy(() => import('./pages/ThemeEditor'));
 const Plugins = lazy(() => import('./pages/Plugins'));
 const VisualQueueManager = lazy(() => import('./pages/plugins/visual-queue-manager').then(m => ({ default: m.VisualQueueManager })));
 const DetachedTabWindow = lazy(() => import('./components/ide/DetachedTabWindow'));
+const RustCommerceRoutes = lazy(() => import('./pages/plugins/rustcommerce'));
 
 // Appearance Pages
 const AppearanceHeaderManager = lazy(() => import('./pages/appearance/HeaderManager'));
@@ -788,6 +789,18 @@ function App() {
         <Route path="plugins/:pluginSlug" element={
           <Suspense fallback={<PageLoader />}>
             <Plugins />
+          </Suspense>
+        } />
+
+        {/* RustCommerce Store */}
+        <Route path="store/*" element={
+          <Suspense fallback={<PageLoader />}>
+            <RustCommerceRoutes />
+          </Suspense>
+        } />
+        <Route path="plugins/rust-commerce/*" element={
+          <Suspense fallback={<PageLoader />}>
+            <RustCommerceRoutes />
           </Suspense>
         } />
 
