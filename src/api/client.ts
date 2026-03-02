@@ -40,6 +40,16 @@ export interface Post {
   status: 'draft' | 'published' | 'scheduled';
   author_id: string;
   featured_image?: string;
+  featured_image_alt?: string;
+  visibility?: 'public' | 'private' | 'password';
+  password?: string;
+  author_name?: string;
+  categories?: string[];
+  tags?: string[];
+  seo_title?: string;
+  seo_description?: string;
+  focus_keyword?: string;
+  scheduled_at?: string;
   created_at: string;
   updated_at: string;
 }

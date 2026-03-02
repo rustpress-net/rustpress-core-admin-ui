@@ -38,6 +38,9 @@ const DatabaseImport = lazy(() => import('./pages/development/DatabaseImport'));
 const SchemaTools = lazy(() => import('./pages/development/SchemaTools'));
 const TableAdvanced = lazy(() => import('./pages/development/TableAdvanced'));
 
+// Posts
+const PostsListPage = lazy(() => import('./pages/posts/PostsListPage'));
+
 // Component imports
 const PostEditor = lazy(() => import('./components/posts/PostEditor'));
 const ThemeLayoutManager = lazy(() => import('./components/themes/ThemeLayoutManager'));
@@ -105,59 +108,7 @@ const SiteModeRedirect = () => {
   return <Navigate to="/dashboard" replace />;
 };
 
-// Posts List Page - Using new design system
-const PostsList = () => (
-  <motion.div initial="hidden" animate="visible" variants={staggerContainer} className="space-y-6">
-    <PageHeader
-      title="Posts"
-      description="Manage your blog posts and articles"
-      actions={
-        <Link to="/posts/new">
-          <Button variant="primary" leftIcon={<Plus className="w-4 h-4" />}>
-            New Post
-          </Button>
-        </Link>
-      }
-    />
-    <motion.div variants={fadeInUp}>
-      <DataTable
-        columns={[
-          { key: 'title', header: 'Title', sortable: true },
-          { key: 'author', header: 'Author', sortable: true },
-          {
-            key: 'status',
-            header: 'Status',
-            render: (value) => (
-              <Badge variant={value === 'published' ? 'success' : value === 'draft' ? 'warning' : 'info'} size="sm">
-                {value}
-              </Badge>
-            )
-          },
-          { key: 'date', header: 'Date', sortable: true },
-          {
-            key: 'actions',
-            header: 'Actions',
-            render: (_, row) => (
-              <Link to={`/posts/${row.id}/edit`}>
-                <Button variant="ghost" size="sm">Edit</Button>
-              </Link>
-            )
-          }
-        ]}
-        data={[
-          { id: 1, title: 'Getting Started with RustPress', author: 'Admin', status: 'published', date: '2024-12-20' },
-          { id: 2, title: 'Building Your First Theme', author: 'Admin', status: 'draft', date: '2024-12-19' },
-          { id: 3, title: 'Plugin Development Guide', author: 'Admin', status: 'published', date: '2024-12-18' },
-          { id: 4, title: 'SEO Best Practices', author: 'Editor', status: 'scheduled', date: '2024-12-25' },
-          { id: 5, title: 'Performance Optimization', author: 'Admin', status: 'published', date: '2024-12-15' },
-        ]}
-        selectable
-        pagination
-        pageSize={10}
-      />
-    </motion.div>
-  </motion.div>
-);
+// PostsList removed — replaced by lazy-loaded PostsListPage
 
 // Pages List
 const PagesList = () => (
@@ -675,7 +626,11 @@ function App() {
         } />
 
         {/* Posts */}
-        <Route path="posts" element={<PostsList />} />
+        <Route path="posts" element={
+          <Suspense fallback={<PageLoader />}>
+            <PostsListPage />
+          </Suspense>
+        } />
         <Route path="posts/new" element={
           <Suspense fallback={<PageLoader />}>
             <PostEditor />
